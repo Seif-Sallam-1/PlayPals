@@ -23,8 +23,11 @@ interface GameRepository {
 
 class FirebaseGameRepository : GameRepository {
     private val database = try {
-        FirebaseDatabase.getInstance()
-    } catch (e: Exception) {
+        val app = com.google.firebase.FirebaseApp.getInstance()
+        val url = app.options.databaseUrl?.takeIf { it.isNotEmpty() && !it.contains("fake-project") } 
+            ?: "https://playpals-e7b51-default-rtdb.europe-west1.firebasedatabase.app/"
+        FirebaseDatabase.getInstance(app, url)
+    } catch (e: Throwable) {
         Log.e("FirebaseGameRepository", "Failed to retrieve FirebaseDatabase instance", e)
         null
     }
@@ -44,9 +47,9 @@ class FirebaseGameRepository : GameRepository {
             )
             ref.child(roomId).setValue(newRoom).await()
             Result.success(roomId)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("GameRepository", "Failed to create room", e)
-            Result.failure(e)
+            Result.failure(Exception(e))
         }
     }
 
@@ -76,9 +79,9 @@ class FirebaseGameRepository : GameRepository {
             )
             ref.child(roomId).setValue(updatedRoom).await()
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("GameRepository", "Failed to join room", e)
-            Result.failure(e)
+            Result.failure(Exception(e))
         }
     }
 
@@ -139,9 +142,9 @@ class FirebaseGameRepository : GameRepository {
         return try {
             ref.child(roomId).setValue(room).await()
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("GameRepository", "Failed to update room", e)
-            Result.failure(e)
+            Result.failure(Exception(e))
         }
     }
 
@@ -166,9 +169,9 @@ class FirebaseGameRepository : GameRepository {
                 }
             }
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("GameRepository", "Failed to leave room", e)
-            Result.failure(e)
+            Result.failure(Exception(e))
         }
     }
 

@@ -20,9 +20,21 @@ fun PlayPalsNavGraph(
     navController: NavHostController,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.example.PlayPalsApplication
+    val authRepository = context.container.authRepository
+    val currentUser = authRepository.currentUser
+    
+    // Auto sign-in if user exists and is verified (or signed in via Google which is pre-verified)
+    val isVerified = currentUser?.isEmailVerified == true || currentUser?.providerData?.any { it.providerId == "google.com" } == true
+    val startDest = if (currentUser != null && isVerified) {
+        Screen.MainHub.route
+    } else {
+        Screen.Splash.route
+    }
+
     NavHost(
         navController = navController,
-        startDestination = Screen.Splash.route,
+        startDestination = startDest,
         modifier = modifier
     ) {
         // Welcome Splash Screen

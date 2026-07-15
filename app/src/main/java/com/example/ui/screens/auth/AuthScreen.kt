@@ -139,344 +139,462 @@ fun AuthScreen(
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = if (uiState.isSignUpMode) "Create Account" else "Welcome Back",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Start
-                    )
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Google Sign-In Button
-                    OutlinedButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                try {
-                                    val credentialManager = CredentialManager.create(rawContext)
-                                    // Normally we use the Web Client ID associated with Google Sign-In in Firebase.
-                                    // We default to a standard placeholder, letting the user know they can update it.
-                                    val webClientId = "532352985723-v80n4cienepcdatji97sjmmr4kvs2arq.apps.googleusercontent.com"
-                                    
-                                    val googleIdOption = GetGoogleIdOption.Builder()
-                                        .setFilterByAuthorizedAccounts(false)
-                                        .setServerClientId(webClientId)
-                                        .setAutoSelectEnabled(false)
-                                        .build()
-
-                                    val request = GetCredentialRequest.Builder()
-                                        .addCredentialOption(googleIdOption)
-                                        .build()
-
-                                    val result = credentialManager.getCredential(rawContext, request)
-                                    val credential = result.credential
-
-                                    if (credential is GoogleIdTokenCredential) {
-                                        viewModel.signInWithGoogleToken(credential.idToken)
-                                    } else {
-                                        viewModel.setErrorMessage("Invalid credential type received.")
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("AuthScreen", "Google Sign-In failed", e)
-                                    val errorMsg = e.localizedMessage ?: "Google Sign-In cancelled or failed."
-                                    if (errorMsg.contains("activity is null", ignoreCase = true) || 
-                                        errorMsg.contains("No credential option", ignoreCase = true) ||
-                                        errorMsg.contains("YOUR_GOOGLE_WEB_CLIENT_ID", ignoreCase = true)) {
-                                        viewModel.setErrorMessage(
-                                            "To enable Google Sign-In:\n" +
-                                            "1. Upload your real 'google-services.json' file to the project's 'app/' folder.\n" +
-                                            "2. Follow the instructions to configure your Google Web Client ID in the Firebase Console and replace the 'webClientId' placeholder in AuthScreen.kt."
-                                        )
-                                    } else {
-                                        viewModel.setErrorMessage(errorMsg)
-                                    }
-                                }
-                            }
-                        },
+                if (uiState.needsEmailVerification) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
-                            .testTag("google_signin_button"),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(20.dp))
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Login,
-                                contentDescription = "Google Logo",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Continue with Google",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // or Divider
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
-                        Text(
-                            text = "or",
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Username Field (Visible in Sign Up mode)
-                    AnimatedVisibility(
-                        visible = uiState.isSignUpMode,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
-                    ) {
-                        Column {
-                            OutlinedTextField(
-                                value = uiState.username,
-                                onValueChange = viewModel::onUsernameChanged,
-                                label = { Text("Username") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = "Username Icon",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                                ),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp)
-                                    .testTag("username_input")
-                                    .minimumInteractiveComponentSize()
-                            )
-                        }
-                    }
-
-                    // Email Field
-                    OutlinedTextField(
-                        value = uiState.email,
-                        onValueChange = viewModel::onEmailChanged,
-                        label = { Text("Email Address") },
-                        leadingIcon = {
-                            Icon(
                                 imageVector = Icons.Default.Email,
-                                contentDescription = "Email Icon",
-                                tint = MaterialTheme.colorScheme.primary
+                                contentDescription = "Email verification",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(36.dp)
                             )
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                            focusedLabelColor = MaterialTheme.colorScheme.primary,
-                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("email_input")
-                            .minimumInteractiveComponentSize()
-                    )
+                        }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    // Password Field
-                    OutlinedTextField(
-                        value = uiState.password,
-                        onValueChange = viewModel::onPasswordChanged,
-                        label = { Text("Password") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Password Icon",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        trailingIcon = {
-                            IconButton(
-                                onClick = { passwordVisible = !passwordVisible },
-                                modifier = Modifier.minimumInteractiveComponentSize()
-                            ) {
-                                Icon(
-                                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Toggle Password Visibility",
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                )
-                            }
-                        },
-                        singleLine = true,
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                            focusedLabelColor = MaterialTheme.colorScheme.primary,
-                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("password_input")
-                            .minimumInteractiveComponentSize()
-                    )
+                        Text(
+                            text = "Verify your Email",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
 
-                    // Error Message Banner
-                    AnimatedVisibility(
-                        visible = uiState.errorMessage != null,
-                        enter = slideInVertically() + fadeIn(),
-                        exit = slideOutVertically() + fadeOut()
-                    ) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "We have sent a verification link to:\n${uiState.email}\n\nPlease check your inbox and verify your email, then return here to log in.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 20.sp
+                        )
+
                         uiState.errorMessage?.let { error ->
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 16.dp)
-                                    .testTag("error_card")
+                                    .padding(vertical = 16.dp)
                             ) {
-                                Row(
+                                Text(
+                                    text = error,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(12.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Button(
+                            onClick = viewModel::checkEmailVerificationStatus,
+                            enabled = !uiState.isLoading,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .testTag("check_verification_button")
+                        ) {
+                            if (uiState.isLoading) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            } else {
+                                Text("I Verified / Check Status", fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedButton(
+                            onClick = viewModel::sendVerificationEmail,
+                            enabled = !uiState.isLoading,
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .testTag("resend_verification_button"),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Text("Resend Verification Email", fontWeight = FontWeight.SemiBold)
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        TextButton(
+                            onClick = viewModel::cancelVerificationFlow,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Go Back", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (uiState.isSignUpMode) "Create Account" else "Welcome Back",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Start
+                        )
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        // Google Sign-In Button
+                        OutlinedButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    try {
+                                        val credentialManager = CredentialManager.create(rawContext)
+                                        // Normally we use the Web Client ID associated with Google Sign-In in Firebase.
+                                        // We default to a standard placeholder, letting the user know they can update it.
+                                        val webClientId = "532352985723-v80n4cienepcdatji97sjmmr4kvs2arq.apps.googleusercontent.com"
+                                        
+                                        val googleIdOption = GetGoogleIdOption.Builder()
+                                            .setFilterByAuthorizedAccounts(false)
+                                            .setServerClientId(webClientId)
+                                            .setAutoSelectEnabled(false)
+                                            .build()
+
+                                        val request = GetCredentialRequest.Builder()
+                                            .addCredentialOption(googleIdOption)
+                                            .build()
+
+                                        val result = credentialManager.getCredential(rawContext, request)
+                                        val credential = result.credential
+
+                                        if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                            val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                                            viewModel.signInWithGoogleToken(googleIdTokenCredential.idToken)
+                                        } else if (credential is GoogleIdTokenCredential) {
+                                            viewModel.signInWithGoogleToken(credential.idToken)
+                                        } else {
+                                            viewModel.setErrorMessage("Invalid credential type received: ${credential.type}")
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("AuthScreen", "Google Sign-In failed", e)
+                                        val errorMsg = e.localizedMessage ?: "Google Sign-In cancelled or failed."
+                                        if (errorMsg.contains("activity is null", ignoreCase = true) || 
+                                            errorMsg.contains("No credential option", ignoreCase = true) ||
+                                            errorMsg.contains("YOUR_GOOGLE_WEB_CLIENT_ID", ignoreCase = true)) {
+                                            viewModel.setErrorMessage(
+                                                "To enable Google Sign-In:\n" +
+                                                "1. Upload your real 'google-services.json' file to the project's 'app/' folder.\n" +
+                                                "2. Follow the instructions to configure your Google Web Client ID in the Firebase Console and replace the 'webClientId' placeholder in AuthScreen.kt."
+                                            )
+                                        } else {
+                                            viewModel.setErrorMessage(errorMsg)
+                                        }
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .testTag("google_signin_button"),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Login,
+                                    contentDescription = "Google Logo",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Continue with Google",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // or Divider
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            HorizontalDivider(
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = "or",
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Username Field (Visible in Sign Up mode)
+                        AnimatedVisibility(
+                            visible = uiState.isSignUpMode,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut()
+                        ) {
+                            Column {
+                                OutlinedTextField(
+                                    value = uiState.username,
+                                    onValueChange = viewModel::onUsernameChanged,
+                                    label = { Text("Username") },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = "Username Icon",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    },
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    shape = RoundedCornerShape(16.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                        .padding(bottom = 16.dp)
+                                        .testTag("username_input")
+                                        .minimumInteractiveComponentSize()
+                                )
+                            }
+                        }
+
+                        // Email Field
+                        OutlinedTextField(
+                            value = uiState.email,
+                            onValueChange = viewModel::onEmailChanged,
+                            label = { Text("Email Address") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Email,
+                                    contentDescription = "Email Icon",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("email_input")
+                                .minimumInteractiveComponentSize()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Password Field
+                        OutlinedTextField(
+                            value = uiState.password,
+                            onValueChange = viewModel::onPasswordChanged,
+                            label = { Text("Password") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Password Icon",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { passwordVisible = !passwordVisible },
+                                    modifier = Modifier.minimumInteractiveComponentSize()
                                 ) {
-                                    Text(
-                                        text = error,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.weight(1f)
+                                    Icon(
+                                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = "Toggle Password Visibility",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                     )
-                                    IconButton(
-                                        onClick = viewModel::clearError,
+                                }
+                            },
+                            singleLine = true,
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("password_input")
+                                .minimumInteractiveComponentSize()
+                        )
+
+                        // Error Message Banner
+                        AnimatedVisibility(
+                            visible = uiState.errorMessage != null,
+                            enter = slideInVertically() + fadeIn(),
+                            exit = slideOutVertically() + fadeOut()
+                        ) {
+                            uiState.errorMessage?.let { error ->
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 16.dp)
+                                        .testTag("error_card")
+                                ) {
+                                    Row(
                                         modifier = Modifier
-                                            .size(24.dp)
-                                            .minimumInteractiveComponentSize()
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Dismiss Error",
-                                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                                            modifier = Modifier.size(16.dp)
+                                        Text(
+                                            text = error,
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.weight(1f)
                                         )
+                                        IconButton(
+                                            onClick = viewModel::clearError,
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .minimumInteractiveComponentSize()
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Dismiss Error",
+                                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(28.dp))
+                        Spacer(modifier = Modifier.height(28.dp))
 
-                    // Primary Action Button (Deep Purple in Vibrant Palette)
-                    Button(
-                        onClick = viewModel::performAuth,
-                        enabled = !uiState.isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .testTag("auth_submit_button")
-                            .minimumInteractiveComponentSize()
-                    ) {
-                        if (uiState.isLoading) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        } else {
+                        // Primary Action Button (Deep Purple in Vibrant Palette)
+                        Button(
+                            onClick = viewModel::performAuth,
+                            enabled = !uiState.isLoading,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .testTag("auth_submit_button")
+                                .minimumInteractiveComponentSize()
+                        ) {
+                            if (uiState.isLoading) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            } else {
+                                Text(
+                                    text = if (uiState.isSignUpMode) "Let's Play!" else "Sign In",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Auth Mode Switch Link
+                        TextButton(
+                            onClick = viewModel::toggleMode,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("toggle_auth_mode_button")
+                                .minimumInteractiveComponentSize()
+                        ) {
                             Text(
-                                text = if (uiState.isSignUpMode) "Let's Play!" else "Sign In",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
+                                text = if (uiState.isSignUpMode) "Already have an account? Sign In" else "New to PlayPals? Create Account",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // Auth Mode Switch Link
-                    TextButton(
-                        onClick = viewModel::toggleMode,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("toggle_auth_mode_button")
-                            .minimumInteractiveComponentSize()
-                    ) {
-                        Text(
-                            text = if (uiState.isSignUpMode) "Already have an account? Sign In" else "New to PlayPals? Create Account",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Guest/Offline bypass option
-                    TextButton(
-                        onClick = onAuthSuccess,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("guest_bypass_button")
-                            .minimumInteractiveComponentSize()
-                    ) {
-                        Text(
-                            text = "Play Offline as Guest",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        // Guest/Offline bypass option
+                        TextButton(
+                            onClick = onAuthSuccess,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("guest_bypass_button")
+                                .minimumInteractiveComponentSize()
+                        ) {
+                            Text(
+                                text = "Play Offline as Guest",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }

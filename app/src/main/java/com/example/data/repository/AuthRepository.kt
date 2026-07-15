@@ -18,6 +18,8 @@ interface AuthRepository {
     suspend fun signInWithEmail(email: String, password: String): Result<FirebaseUser>
     suspend fun signUpWithEmail(email: String, username: String, password: String): Result<FirebaseUser>
     suspend fun signInWithGoogleToken(idToken: String): Result<FirebaseUser>
+    suspend fun sendEmailVerification(): Result<Unit>
+    suspend fun reloadUser(): Result<FirebaseUser>
     fun signOut()
     val currentUsername: String
 }
@@ -109,6 +111,29 @@ class FirebaseAuthRepository : AuthRepository {
             Result.success(user)
         } catch (e: Exception) {
             Log.e("AuthRepository", "Google sign in failed", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun sendEmailVerification(): Result<Unit> {
+        val user = currentUser ?: return Result.failure(Exception("No user is currently signed in."))
+        return try {
+            user.sendEmailVerification().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Failed to send email verification", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun reloadUser(): Result<FirebaseUser> {
+        val user = currentUser ?: return Result.failure(Exception("No user is currently signed in."))
+        return try {
+            user.reload().await()
+            _authState.value = firebaseAuth?.currentUser
+            Result.success(firebaseAuth?.currentUser ?: user)
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Failed to reload user", e)
             Result.failure(e)
         }
     }

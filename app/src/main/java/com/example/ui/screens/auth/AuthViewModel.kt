@@ -17,7 +17,8 @@ data class AuthUiState(
     val isSignUpMode: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val isSuccess: Boolean = false
+    val isSuccess: Boolean = false,
+    val needsEmailVerification: Boolean = false
 )
 
 class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
@@ -41,7 +42,8 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(
             isSignUpMode = !_uiState.value.isSignUpMode,
             errorMessage = null,
-            username = ""
+            username = "",
+            needsEmailVerification = false
         )
     }
 
@@ -71,8 +73,14 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             if (state.isSignUpMode) {
                 authRepository.signUpWithEmail(state.email, state.username, state.password)
-                    .onSuccess {
-                        _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true)
+                    .onSuccess { user ->
+                        // Send verification email automatically
+                        authRepository.sendEmailVerification()
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            needsEmailVerification = true,
+                            errorMessage = "Account created! A verification link has been sent to ${state.email}. Please verify your email to log in."
+                        )
                     }
                     .onFailure { error ->
                         _uiState.value = _uiState.value.copy(
@@ -82,8 +90,16 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
                     }
             } else {
                 authRepository.signInWithEmail(state.email, state.password)
-                    .onSuccess {
-                        _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true)
+                    .onSuccess { user ->
+                        if (user.isEmailVerified) {
+                            _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true)
+                        } else {
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                needsEmailVerification = true,
+                                errorMessage = "Please verify your email address to log in. We sent a verification link to your email."
+                            )
+                        }
                     }
                     .onFailure { error ->
                         _uiState.value = _uiState.value.copy(
@@ -93,6 +109,57 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
                     }
             }
         }
+    }
+
+    fun sendVerificationEmail() {
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        viewModelScope.launch {
+            authRepository.sendEmailVerification()
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "A new verification link has been sent to your inbox!"
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Failed to send verification link: ${error.localizedMessage}"
+                    )
+                }
+        }
+    }
+
+    fun checkEmailVerificationStatus() {
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        viewModelScope.launch {
+            authRepository.reloadUser()
+                .onSuccess { user ->
+                    if (user.isEmailVerified) {
+                        _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true, errorMessage = null)
+                    } else {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = "Your email is still not verified. Please check your inbox and click the verification link, then click check status again."
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Failed to refresh verification status: ${error.localizedMessage}"
+                    )
+                }
+        }
+    }
+
+    fun cancelVerificationFlow() {
+        authRepository.signOut()
+        _uiState.value = _uiState.value.copy(
+            needsEmailVerification = false,
+            errorMessage = null,
+            isSuccess = false
+        )
     }
 
     fun signInWithGoogleToken(idToken: String) {
