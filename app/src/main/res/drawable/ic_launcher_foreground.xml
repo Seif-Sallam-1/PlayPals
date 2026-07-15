@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Decorative glowing background circle -->
+    <path
+        android:fillColor="#1AFFFFFF"
+        android:pathData="M54,54m-36,0a36,36 0 1,1 72,0a36,36 0 1,1 -72,0" />
+
+    <!-- Main Game Controller Body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 28,40 C 28,40 38,36 54,36 C 70,36 80,40 80,40 C 85,41 88,46 87,51 L 83,69 C 82,73 78,76 74,74 L 63,69 C 59,67 49,67 45,69 L 34,74 C 30,76 26,73 25,69 L 21,51 C 20,46 23,41 28,40 Z" />
+
+    <!-- Left Grip Subtle Shadow/Inset Curve -->
+    <path
+        android:fillColor="#E1D8FA"
+        android:pathData="M 28,40 C 28,40 33,39 42,41 C 42,41 33,45 28,49 Z" />
+
+    <!-- Right Grip Subtle Shadow/Inset Curve -->
+    <path
+        android:fillColor="#E1D8FA"
+        android:pathData="M 80,40 C 80,40 75,39 66,41 C 66,41 75,45 80,49 Z" />
+
+    <!-- D-Pad (Plus Sign on the Left) -->
+    <path
+        android:fillColor="#3A1C71"
+        android:pathData="M 36,47 H 38 V 51 H 42 V 53 H 38 V 57 H 36 V 53 H 32 V 51 H 36 Z" />
+
+    <!-- Action Buttons (On the Right) -->
+    <!-- 'X' button (top/left in the cluster) -->
+    <path
+        android:fillColor="#FF2E93"
+        android:pathData="M 68,46 C 69.1,46 70,46.9 70,48 C 70,49.1 69.1,50 68,50 C 66.9,50 66,49.1 66,48 C 66,46.9 66.9,46 68,46 Z" />
+    <!-- 'O' button (bottom/right in the cluster) -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M 76,52 C 77.1,52 78,52.9 78,54 C 78,55.1 77.1,56 76,56 C 74.9,56 74,55.1 74,54 C 74,52.9 74.9,52 76,52 Z" />
+
+    <!-- Center Control Buttons (Select / Start) -->
+    <path
+        android:fillColor="#B5A4DB"
+        android:pathData="M 46,50 H 50 V 51.5 H 46 Z" />
+    <path
+        android:fillColor="#B5A4DB"
+        android:pathData="M 54,50 H 58 V 51.5 H 54 Z" />
+
+</vector>

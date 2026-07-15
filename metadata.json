@@ -1,0 +1,6 @@
+{
+  "name": "PlayPals",
+  "description": "PlayPals is a casual multiplayer game hub featuring both offline and online games including Tic-Tac-Toe, matchmaking lobbies, global leaderboards, and real-time multiplayer syncing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
