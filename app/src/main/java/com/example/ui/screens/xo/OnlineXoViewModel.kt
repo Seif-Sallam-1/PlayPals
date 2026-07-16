@@ -1,6 +1,7 @@
 // File: app/src/main/java/com/example/ui/screens/xo/OnlineXoViewModel.kt
 package com.example.ui.screens.xo
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -10,6 +11,7 @@ import com.example.data.repository.GameRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 class OnlineXoViewModel(
@@ -25,13 +27,17 @@ class OnlineXoViewModel(
     val isLeaving: StateFlow<Boolean> = _isLeaving.asStateFlow()
 
     val currentUserId: String
-        get() = authRepository.currentUser?.uid ?: ""
+        get() = authRepository.currentUser?.uid ?: authRepository.guestUserId
 
     init {
         viewModelScope.launch {
-            gameRepository.observeRoom(roomId).collect { room ->
-                _roomState.value = room
-            }
+            gameRepository.observeRoom(roomId)
+                .catch { e ->
+                    Log.e("OnlineXoViewModel", "Error observing room $roomId", e)
+                }
+                .collect { room ->
+                    _roomState.value = room
+                }
         }
     }
 

@@ -22,9 +22,10 @@ interface AuthRepository {
     suspend fun reloadUser(): Result<FirebaseUser>
     fun signOut()
     val currentUsername: String
+    val guestUserId: String
 }
 
-class FirebaseAuthRepository : AuthRepository {
+class FirebaseAuthRepository(private val context: android.content.Context) : AuthRepository {
     private val firebaseAuth: FirebaseAuth? = try {
         FirebaseAuth.getInstance()
     } catch (e: Exception) {
@@ -34,6 +35,16 @@ class FirebaseAuthRepository : AuthRepository {
     
     private val _authState = MutableStateFlow<FirebaseUser?>(firebaseAuth?.currentUser)
     override val authState: StateFlow<FirebaseUser?> = _authState.asStateFlow()
+
+    override val guestUserId: String by lazy {
+        val prefs = context.getSharedPreferences("playpals_prefs", android.content.Context.MODE_PRIVATE)
+        var id = prefs.getString("guest_uid", null)
+        if (id == null) {
+            id = "guest_" + java.util.UUID.randomUUID().toString().replace("-", "").take(8)
+            prefs.edit().putString("guest_uid", id).apply()
+        }
+        id
+    }
 
     init {
         try {
@@ -60,7 +71,7 @@ class FirebaseAuthRepository : AuthRepository {
         get() = firebaseAuth?.currentUser
 
     override val currentUsername: String
-        get() = currentUser?.displayName ?: currentUser?.email?.substringBefore("@") ?: "Player"
+        get() = currentUser?.displayName ?: currentUser?.email?.substringBefore("@") ?: "Guest_${guestUserId.takeLast(4).uppercase()}"
 
     override suspend fun signInWithEmail(email: String, password: String): Result<FirebaseUser> {
         val auth = firebaseAuth ?: return Result.failure(Exception("Authentication service is currently unavailable."))

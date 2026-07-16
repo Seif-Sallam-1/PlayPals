@@ -31,7 +31,12 @@ class FirebaseGameRepository : GameRepository {
         Log.e("FirebaseGameRepository", "Failed to retrieve FirebaseDatabase instance", e)
         null
     }
-    private val roomsRef = database?.getReference("rooms")
+    private val roomsRef = try {
+        database?.getReference("rooms")
+    } catch (e: Throwable) {
+        Log.e("FirebaseGameRepository", "Failed to get reference to 'rooms'", e)
+        null
+    }
 
     override suspend fun createRoom(hostId: String, hostName: String): Result<String> {
         val ref = roomsRef ?: return Result.failure(Exception("Multiplayer service is currently unavailable."))
@@ -94,17 +99,36 @@ class FirebaseGameRepository : GameRepository {
         }
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val room = snapshot.getValue(GameRoom::class.java)
-                trySend(room)
+                try {
+                    val room = snapshot.getValue(GameRoom::class.java)
+                    if (room != null && room.id.isEmpty()) {
+                        room.id = snapshot.key ?: roomId
+                    }
+                    trySend(room)
+                } catch (e: Exception) {
+                    Log.e("GameRepository", "Error parsing room snapshot", e)
+                    trySend(null)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
                 close(error.toException())
             }
         }
-        ref.child(roomId).addValueEventListener(listener)
+        try {
+            ref.child(roomId).addValueEventListener(listener)
+        } catch (e: Exception) {
+            Log.e("GameRepository", "Failed to add room listener", e)
+            trySend(null)
+            close(e)
+            return@callbackFlow
+        }
         awaitClose {
-            ref.child(roomId).removeEventListener(listener)
+            try {
+                ref.child(roomId).removeEventListener(listener)
+            } catch (e: Exception) {
+                Log.e("GameRepository", "Failed to remove room listener", e)
+            }
         }
     }
 
@@ -118,22 +142,45 @@ class FirebaseGameRepository : GameRepository {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val rooms = mutableListOf<GameRoom>()
-                for (child in snapshot.children) {
-                    val room = child.getValue(GameRoom::class.java)
-                    if (room != null && room.status == "WAITING" && room.playerOId.isEmpty()) {
-                        rooms.add(room)
+                try {
+                    for (child in snapshot.children) {
+                        try {
+                            val room = child.getValue(GameRoom::class.java)
+                            if (room != null && room.status == "WAITING" && room.playerOId.isEmpty()) {
+                                if (room.id.isEmpty()) {
+                                    room.id = child.key ?: ""
+                                }
+                                rooms.add(room)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("GameRepository", "Failed to parse single room", e)
+                        }
                     }
+                    trySend(rooms)
+                } catch (e: Exception) {
+                    Log.e("GameRepository", "Error processing rooms snapshot", e)
+                    trySend(emptyList())
                 }
-                trySend(rooms)
             }
 
             override fun onCancelled(error: DatabaseError) {
                 close(error.toException())
             }
         }
-        ref.addValueEventListener(listener)
+        try {
+            ref.addValueEventListener(listener)
+        } catch (e: Exception) {
+            Log.e("GameRepository", "Failed to add value event listener", e)
+            trySend(emptyList())
+            close(e)
+            return@callbackFlow
+        }
         awaitClose {
-            ref.removeEventListener(listener)
+            try {
+                ref.removeEventListener(listener)
+            } catch (e: Exception) {
+                Log.e("GameRepository", "Failed to remove event listener", e)
+            }
         }
     }
 
@@ -156,15 +203,19 @@ class FirebaseGameRepository : GameRepository {
                 val room = snapshot.getValue(GameRoom::class.java)
                 if (room != null) {
                     if (room.playerXId == playerId) {
-                        // Host left - set room status to ABANDONED or remove it
-                        if (room.playerOId.isEmpty()) {
+                        // Host left
+                        if (room.playerOId.isEmpty() || room.status == "ABANDONED") {
                             ref.child(roomId).removeValue().await()
                         } else {
                             ref.child(roomId).setValue(room.copy(status = "ABANDONED")).await()
                         }
                     } else if (room.playerOId == playerId) {
                         // Guest left
-                        ref.child(roomId).setValue(room.copy(status = "ABANDONED")).await()
+                        if (room.status == "ABANDONED") {
+                            ref.child(roomId).removeValue().await()
+                        } else {
+                            ref.child(roomId).setValue(room.copy(status = "ABANDONED")).await()
+                        }
                     }
                 }
             }

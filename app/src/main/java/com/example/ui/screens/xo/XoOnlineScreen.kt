@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.PlayPalsApplication
 import com.example.ui.theme.PlayerXColor
@@ -50,6 +51,11 @@ fun XoOnlineScreen(
 
     val roomState by viewModel.roomState.collectAsState()
     val isLeaving by viewModel.isLeaving.collectAsState()
+
+    // Handle system back gesture
+    BackHandler {
+        viewModel.leaveMatch()
+    }
 
     // Trigger navigation back when leaving room completes
     LaunchedEffect(isLeaving) {
@@ -191,11 +197,13 @@ fun XoOnlineScreen(
                             }
                             "PLAYING" -> {
                                 if (viewModel.isMyTurn) {
-                                    statusText = "YOUR TURN!"
-                                    statusColor = PlayerXColor
+                                    val symbol = viewModel.playerSymbol
+                                    statusText = "YOUR TURN ($symbol)"
+                                    statusColor = if (symbol == "X") PlayerXColor else PlayerOColor
                                 } else {
-                                    statusText = "Waiting for ${viewModel.opponentName}'s move..."
-                                    statusColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    val oppSymbol = if (viewModel.playerSymbol == "X") "O" else "X"
+                                    statusText = "OPPONENT'S TURN ($oppSymbol): Waiting for ${viewModel.opponentName}..."
+                                    statusColor = if (oppSymbol == "X") PlayerXColor else PlayerOColor
                                 }
                             }
                             "WON_X" -> {
@@ -236,63 +244,130 @@ fun XoOnlineScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Classic 3x3 Game Board Grid
-                Box(
-                    modifier = Modifier
-                        .size(320.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp))
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                if (room.status == "WAITING") {
+                    // Show a gorgeous, dedicated waiting card for the host
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 16.dp)
+                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
+                            .testTag("waiting_for_guest_card"),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                     ) {
-                        for (row in 0..2) {
-                            Row(
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 4.dp,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            
+                            Text(
+                                text = "Waiting for Guest to Join...",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center
+                            )
+                            
+                            Text(
+                                text = "Share this 5-digit Room Code with your opponent:",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                            
+                            // High-contrast, large code container
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp))
+                                    .padding(horizontal = 32.dp, vertical = 12.dp)
                             ) {
-                                for (col in 0..2) {
-                                    val cellIndex = row * 3 + col
-                                    val cellValue = room.board[cellIndex]
-                                    
-                                    val isClickable = cellValue.isEmpty() && 
-                                            room.status == "PLAYING" && 
-                                            viewModel.isMyTurn
+                                Text(
+                                    text = roomId,
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    letterSpacing = 4.sp
+                                )
+                            }
+                            
+                            Text(
+                                text = "The game will automatically start as soon as they join with this code.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                    }
+                } else {
+                    // Classic 3x3 Game Board Grid
+                    Box(
+                        modifier = Modifier
+                            .size(320.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp))
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            for (row in 0..2) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    for (col in 0..2) {
+                                        val cellIndex = row * 3 + col
+                                        val cellValue = room.board[cellIndex]
+                                        
+                                        val isClickable = cellValue.isEmpty() && 
+                                                room.status == "PLAYING" && 
+                                                viewModel.isMyTurn
 
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .fillMaxHeight()
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(MaterialTheme.colorScheme.surface)
-                                            .border(
-                                                width = 1.dp,
-                                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                                                shape = RoundedCornerShape(16.dp)
-                                            )
-                                            .clickable(enabled = isClickable) { 
-                                                viewModel.makeMove(cellIndex) 
-                                            }
-                                            .testTag("online_cell_$cellIndex"),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        androidx.compose.animation.AnimatedVisibility(
-                                            visible = cellValue.isNotEmpty(),
-                                            enter = scaleIn(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
-                                            exit = fadeOut()
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(MaterialTheme.colorScheme.surface)
+                                                .border(
+                                                    width = 1.dp,
+                                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                                    shape = RoundedCornerShape(16.dp)
+                                                )
+                                                .clickable(enabled = isClickable) { 
+                                                    viewModel.makeMove(cellIndex) 
+                                                }
+                                                .testTag("online_cell_$cellIndex"),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = cellValue,
-                                                fontSize = 42.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = if (cellValue == "X") PlayerXColor else PlayerOColor
-                                            )
+                                            androidx.compose.animation.AnimatedVisibility(
+                                                visible = cellValue.isNotEmpty(),
+                                                enter = scaleIn(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
+                                                exit = fadeOut()
+                                            ) {
+                                                Text(
+                                                    text = cellValue,
+                                                    fontSize = 42.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = if (cellValue == "X") PlayerXColor else PlayerOColor
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -303,8 +378,8 @@ fun XoOnlineScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Rematch Feedback Panel
-                val isGameOver = room.status == "WON_X" || room.status == "WON_O" || room.status == "DRAW"
+                // Rematch / Game Over Feedback Panel
+                val isGameOver = room.status == "WON_X" || room.status == "WON_O" || room.status == "DRAW" || room.status == "ABANDONED"
                 AnimatedVisibility(
                     visible = isGameOver,
                     enter = expandVertically() + fadeIn(),
@@ -328,6 +403,7 @@ fun XoOnlineScreen(
                                 "WON_X" -> if (viewModel.isPlayerX) "You achieved victory!" else "${room.playerXName} won the match!"
                                 "WON_O" -> if (viewModel.isPlayerO) "You achieved victory!" else "${room.playerOName} won the match!"
                                 "DRAW" -> "Even match! Well played both."
+                                "ABANDONED" -> "Opponent abandoned the match."
                                 else -> "Game Over"
                             }
 
@@ -341,22 +417,42 @@ fun XoOnlineScreen(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            Button(
-                                onClick = viewModel::rematch,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .testTag("online_rematch_button")
-                                    .minimumInteractiveComponentSize()
-                            ) {
-                                Text(
-                                    text = "Play Again (Rematch)",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
+                            if (room.status == "ABANDONED") {
+                                Button(
+                                    onClick = viewModel::leaveMatch,
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .testTag("online_return_button")
+                                        .minimumInteractiveComponentSize()
+                                ) {
+                                    Text(
+                                        text = "Return to Menu",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onError
+                                    )
+                                }
+                            } else {
+                                Button(
+                                    onClick = viewModel::rematch,
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .testTag("online_rematch_button")
+                                        .minimumInteractiveComponentSize()
+                                ) {
+                                    Text(
+                                        text = "Play Again (Rematch)",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
                             }
                         }
                     }

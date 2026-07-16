@@ -56,6 +56,7 @@ fun AuthScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     var passwordVisible by remember { mutableStateOf(false) }
+    var showGoogleTroubleshootDialog by remember { mutableStateOf(false) }
 
     // Navigation trigger on success
     LaunchedEffect(uiState.isSuccess) {
@@ -304,17 +305,8 @@ fun AuthScreen(
                                     } catch (e: Exception) {
                                         Log.e("AuthScreen", "Google Sign-In failed", e)
                                         val errorMsg = e.localizedMessage ?: "Google Sign-In cancelled or failed."
-                                        if (errorMsg.contains("activity is null", ignoreCase = true) || 
-                                            errorMsg.contains("No credential option", ignoreCase = true) ||
-                                            errorMsg.contains("YOUR_GOOGLE_WEB_CLIENT_ID", ignoreCase = true)) {
-                                            viewModel.setErrorMessage(
-                                                "To enable Google Sign-In:\n" +
-                                                "1. Upload your real 'google-services.json' file to the project's 'app/' folder.\n" +
-                                                "2. Follow the instructions to configure your Google Web Client ID in the Firebase Console and replace the 'webClientId' placeholder in AuthScreen.kt."
-                                            )
-                                        } else {
-                                            viewModel.setErrorMessage(errorMsg)
-                                        }
+                                        viewModel.setErrorMessage(errorMsg)
+                                        showGoogleTroubleshootDialog = true
                                     }
                                 }
                             },
@@ -599,5 +591,90 @@ fun AuthScreen(
                 }
             }
         }
+    }
+
+    if (showGoogleTroubleshootDialog) {
+        AlertDialog(
+            onDismissRequest = { showGoogleTroubleshootDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Help,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Google Sign-In Help",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "If you got the 'No credentials available' error, or the sign-in prompt did not appear, check these steps:",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    
+                    Text(
+                        text = "1. Device has no Google Account:\n" +
+                               "Make sure a Google Account is signed in on your test device/emulator under Settings > Google.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Text(
+                        text = "2. OAuth2 SHA-1 Fingerprint mismatch:\n" +
+                               "Firebase/Google Cloud Console must have your debug keystore SHA-1. Run this in your terminal to copy it:\n" +
+                               "keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Text(
+                        text = "3. Client ID Configuration:\n" +
+                               "The Client ID configured in AuthScreen.kt matches the Web Client ID in the Google/Firebase Console.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Text(
+                        text = "Pro Tip: You can tap 'Play Offline as Guest' below to bypass login and start playing the game immediately!",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showGoogleTroubleshootDialog = false },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Got It")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showGoogleTroubleshootDialog = false
+                        onAuthSuccess()
+                    }
+                ) {
+                    Text("Play Offline as Guest", color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        )
     }
 }

@@ -1,6 +1,7 @@
 // File: app/src/main/java/com/example/ui/screens/xo/MatchmakingViewModel.kt
 package com.example.ui.screens.xo
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -31,6 +33,13 @@ class MatchmakingViewModel(
 
     // Real-time flow of open rooms waiting for an opponent
     val availableRooms: StateFlow<List<GameRoom>> = gameRepository.observeAvailableRooms()
+        .catch { e ->
+            Log.e("MatchmakingViewModel", "Error observing available rooms", e)
+            _uiState.value = _uiState.value.copy(
+                error = "Failed to load open lobbies: ${e.localizedMessage}"
+            )
+            emit(emptyList())
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -52,7 +61,7 @@ class MatchmakingViewModel(
     }
 
     fun createRoom() {
-        val userId = authRepository.currentUser?.uid ?: "anonymous"
+        val userId = authRepository.currentUser?.uid ?: authRepository.guestUserId
         val userName = authRepository.currentUsername
 
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -89,7 +98,7 @@ class MatchmakingViewModel(
     }
 
     private fun performJoin(roomId: String) {
-        val userId = authRepository.currentUser?.uid ?: "anonymous"
+        val userId = authRepository.currentUser?.uid ?: authRepository.guestUserId
         val userName = authRepository.currentUsername
 
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
